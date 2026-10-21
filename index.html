@@ -11,7 +11,9 @@
   --f-d:'Chakra Petch','Noto Sans JP',system-ui,sans-serif;--f-b:'Noto Sans JP',system-ui,-apple-system,sans-serif;color-scheme:dark;--dp:150px;--bt:80px}
 *,*::before,*::after{-webkit-tap-highlight-color:transparent;-webkit-touch-callout:none;user-select:none;touch-action:none}
 html{box-sizing:border-box;height:100%}
-body{height:100%;box-sizing:border-box;margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-b);padding-block:6px;
+html,body{height:100%;height:100dvh}
+body{box-sizing:border-box;margin:0;background:var(--bg);color:var(--fg);font-family:var(--f-b);
+  padding-top:max(6px,env(safe-area-inset-top,0px));padding-bottom:max(6px,env(safe-area-inset-bottom,0px));
   padding-left:max(10px,env(safe-area-inset-left,0px));padding-right:max(10px,env(safe-area-inset-right,0px));overflow:hidden;touch-action:none;
   user-select:none;-webkit-user-select:none;-webkit-touch-callout:none}
 button{font:inherit;color:inherit}
@@ -37,6 +39,8 @@ button{font:inherit;color:inherit}
 .scanw{position:absolute;left:50%;bottom:calc(var(--mm) + 10px);transform:translateX(-50%);width:min(60%,260px);z-index:3;pointer-events:none;opacity:0;transition:opacity .15s}
 .scanw.on{opacity:1}
 .scanw .bar{height:10px;border-color:#2c7d8f}.scanw .bar i{background:#58d8ff}
+.suckw{bottom:calc(var(--mm) + 44px)}
+.suckw .bar{border-color:#8f2c6a}.suckw .bar i{background:#ff5ad8}.suckw span{color:#ffb0ec}
 .scanw span{display:block;text-align:center;font:700 11px/1 var(--f-b);margin-bottom:4px;color:#9fe8ff}
 .minimap{position:absolute;right:6px;bottom:6px;width:var(--mm);pointer-events:none;z-index:3}
 #rd{width:100%;aspect-ratio:1;display:block;background:rgba(2,10,8,.82);border:1px solid #11382b}
@@ -44,7 +48,7 @@ button{font:inherit;color:inherit}
 .guide[hidden]{display:none}
 .guide i{position:absolute;left:-17px;top:-17px;width:34px;height:34px;display:block;background:var(--acc);clip-path:polygon(100% 50%,0 0,22% 50%,0 100%);filter:drop-shadow(0 0 6px rgba(79,242,180,.8))}
 .guide span{position:absolute;left:0;top:0;transform:translate(-50%,22px);white-space:nowrap;font:700 11px/1 var(--f-b);padding:4px 7px;background:rgba(4,7,12,.85);border:1px solid var(--acc);color:var(--acc)}
-.banner{position:absolute;left:50%;top:42px;transform:translateX(-50%);width:max-content;max-width:calc(100% - 20px);text-align:center;padding:9px 14px;font:700 14px/1.35 var(--f-b);background:rgba(4,7,12,.86);border:1px solid var(--line);pointer-events:none;opacity:0;transition:opacity .2s;z-index:3}
+.banner{position:absolute;left:50%;top:48px;transform:translateX(-50%);width:max-content;max-width:calc(100% - 20px);text-align:center;padding:9px 14px;font:700 14px/1.35 var(--f-b);background:rgba(4,7,12,.86);border:1px solid var(--line);pointer-events:none;opacity:0;transition:opacity .2s;z-index:4}
 .banner.show{opacity:1}.banner.warn{border-color:var(--warn);color:var(--warn)}.banner.crit{border-color:var(--crit);color:var(--crit)}.banner.good{border-color:var(--acc);color:var(--acc)}
 .nogl{position:absolute;inset:0;z-index:9;display:grid;place-items:center;padding:20px;text-align:center;font-size:13px;color:var(--warn);background:#000}
 .nogl[hidden]{display:none}
@@ -115,9 +119,10 @@ button:active{transform:scale(0.92)}
     <div id="flash"></div><div class="vig" id="vig"></div>
     <div class="hudb" id="hudb" hidden><label>みつかりそう度 <b id="vAl">0%</b></label><div class="bar"><i id="bAl"></i></div><label style="margin-top:6px">たかさ <b id="vAlt">ひくい</b></label><div class="bar"><i id="bAlt" style="background:#58b8ff"></i></div></div>
     <div class="scanw" id="scanw"><span id="scanTx">しらべ中…</span><div class="bar"><i id="bSc"></i></div></div>
+    <div class="scanw suckw" id="suckw"><span id="suckTx">吸引力</span><div class="bar"><i id="bSu"></i></div></div>
     <div class="guide" id="guide" hidden><i></i><span id="gtxt"></span></div>
     <div class="banner" id="banner"></div>
-    <div id="padDbg" style="position:absolute;left:6px;right:6px;top:calc(100% - 22px);z-index:6;pointer-events:none;font:600 10px/1.2 var(--f-b);color:#8fd;opacity:.8;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;text-shadow:0 0 3px #000"></div>
+    <div id="padDbg" hidden></div>
     <div class="nogl" id="nogl" hidden>このブラウザでは WebGL が使えないため、3D表示を開始できません。別のブラウザでお試しください。</div>
 
     <div class="ov" id="ovTitle"><div class="card">
@@ -281,12 +286,12 @@ function cloudTexture(){if(cloudMap)return cloudMap;var c=document.createElement
 /* ---------- surface group ---------- */
 var surfG=new THREE.Group();scene.add(surfG);
 var SZ=900,NG=180,CELL=SZ/NG,BOUND=425;
-var G=new Float32Array((NG+1)*(NG+1)),points=[],natives=[],WL=-9999,anims=[];
+var G=new Float32Array((NG+1)*(NG+1)),points=[],natives=[],WL=-9999,anims=[],rocks=[],rockIM=null;
 function hAt(x,z){var fx=(x+SZ/2)/CELL,fz=(z+SZ/2)/CELL;fx=clamp(fx,0,NG-.001);fz=clamp(fz,0,NG-.001);var i=fx|0,j=fz|0,u=fx-i,v=fz-j,k=j*(NG+1)+i;
   return G[k]*(1-u)*(1-v)+G[k+1]*u*(1-v)+G[k+NG+1]*(1-u)*v+G[k+NG+2]*u*v}
 function clearSurf(){
   while(surfG.children.length){var o=surfG.children.pop();o.traverse(function(m){if(m.geometry)m.geometry.dispose();if(m.material){if(m.material.map)m.material.map.dispose();m.material.dispose()}})}
-  points=[];natives=[];anims=[]}
+  points=[];natives=[];anims=[];rocks=[];rockIM=null}
 function mkSprite(text,w,col){var c=document.createElement('canvas');c.width=512;c.height=128;var g=c.getContext('2d');g.font='700 54px "Noto Sans JP",sans-serif';g.textAlign='center';g.textBaseline='middle';
   g.lineWidth=10;g.strokeStyle='rgba(0,0,0,.75)';g.strokeText(text,256,64);g.fillStyle=col;g.fillText(text,256,64);
   var s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthTest:false,fog:false}));s.scale.set(w,w/4,1);s.renderOrder=20;return s}
@@ -420,14 +425,14 @@ function buildSurface(p){
     var mg=new THREE.Group();g.add(mg);var lr=rng(p.seed+ix*31);
     if(p.name==='水星')lmMercury(mg,ix);else if(p.name==='金星')lmVenus(mg,ix);else if(p.name==='地球')lmEarth(mg,ix,lr);else if(p.name==='火星')lmMars(mg,ix,lr);else lmPluto(mg,ix,lr);
     var lab=mkSprite((ix+1)+'. '+pt.name,46,'#a8f5ff');lab.position.y=62;
-    g.add(disc,ring,pil,lab);surfG.add(g);pt.g=g;pt.ring=ring;pt.pil=pil;pt.disc=disc;pt.lab=lab;pt.col=beaconCol});
+    g.add(disc,ring,pil,lab);surfG.add(g);pt.g=g;pt.mg=mg;pt.ring=ring;pt.pil=pil;pt.disc=disc;pt.lab=lab;pt.col=beaconCol});
   /* rocks / trees (instanced) */
   var geoR=p.tree?new THREE.ConeGeometry(1,3.4,7):new THREE.DodecahedronGeometry(1,0),matR=new THREE.MeshPhongMaterial({color:p.rock,flatShading:true,shininess:6});
   var im=new THREE.InstancedMesh(geoR,matR,p.rockN),d=new THREE.Object3D(),placed=0;im.frustumCulled=false;
   for(i=0;i<p.rockN*3&&placed<p.rockN;i++){var rx=(r()-.5)*SZ*.86,rz=(r()-.5)*SZ*.86,rh=hAt(rx,rz);if(rh<WL+1.2||Math.hypot(rx,rz)<28)continue;
     var near=false;for(j=0;j<3;j++)if(Math.hypot(points[j].x-rx,points[j].z-rz)<62)near=true;if(near)continue;
-    var s=p.tree?2.2+r()*2.6:1+r()*r()*7;d.position.set(rx,rh+(p.tree?s*1.6:s*.15),rz);d.rotation.set(p.tree?0:r()*PI,r()*TAU,p.tree?0:r()*PI);d.scale.set(s,p.tree?s:s*(.5+r()*.5),s);d.updateMatrix();im.setMatrixAt(placed++,d.matrix)}
-  im.count=placed;im.instanceMatrix.needsUpdate=true;surfG.add(im);
+    var s=p.tree?2.2+r()*2.6:1+r()*r()*7;d.position.set(rx,rh+(p.tree?s*1.6:s*.15),rz);d.rotation.set(p.tree?0:r()*PI,r()*TAU,p.tree?0:r()*PI);d.scale.set(s,p.tree?s:s*(.5+r()*.5),s);d.updateMatrix();rocks.push({x:rx,y:d.position.y,z:rz,ex:d.rotation.x,ey:d.rotation.y,ez:d.rotation.z,sx:d.scale.x,sy:d.scale.y,sz:d.scale.z,st:0,vy:0});im.setMatrixAt(placed++,d.matrix)}
+  rockIM=im;im.count=placed;im.instanceMatrix.needsUpdate=true;surfG.add(im);
   /* clouds */
   if(p.clouds){var cm=new THREE.SpriteMaterial({map:cloudTexture(),transparent:true,opacity:.8,depthWrite:false,color:p.clouds});for(i=0;i<34;i++){var sp=new THREE.Sprite(cm);sp.position.set((r()-.5)*1400,170+r()*70,(r()-.5)*1400);sp.scale.set(220+r()*220,90+r()*60,1);surfG.add(sp)}}
   /* natives */
@@ -466,7 +471,7 @@ function buzz(ms){try{if(navigator.vibrate&&!muted)navigator.vibrate(ms)}catch(e
 
 /* ---------- state ---------- */
 var mode='title',pIdx=0,cur=PL[0],inp={x:0,z:0,a:false,c:false},ufo={x:0,z:0,y:30,vx:0,vz:0,yaw:0,scan:false,alt:0},time=0;
-var stat={t:0,spot:0,beam:0,erase:0},descT=0,clearT=0,beamCd=0,beamFx=0,bannerT=0,orbT=0,msgTimer=0;
+var stat={t:0,spot:0,beam:0,erase:0,suck:0},descT=0,clearT=0,beamCd=0,beamFx=0,bannerT=0,orbT=0,msgTimer=0;
 var HOVER=7.5,MAXSP=40,ALT_MAX=75,SEQ=[0,1,2,3,'gas',4],seqI=0,gasI=0,gasT=0;
 
 function $banner(t,cls,sec){var b=$('banner');b.textContent=t;b.className='banner show '+(cls||'');bannerT=sec||2}
@@ -484,20 +489,20 @@ function hudOn(on){$('hud').hidden=!on;$('hudb').hidden=!on;document.querySelect
 
 /* ---------- flow ---------- */
 function toTitle(){mode='title';pIdx=2;cur=PL[2];buildOrbit(cur);setView('orbit');showOv('ovTitle');hudOn(false);$('guide').hidden=true;$('scanw').classList.remove('on')}
-function startRun(){stat={t:0,spot:0,beam:0,erase:0};seqI=0;pIdx=SEQ[0];intro()}
+function startRun(){stat={t:0,spot:0,beam:0,erase:0,suck:0};seqI=0;pIdx=SEQ[0];intro()}
 function intro(){mode='intro';cur=PL[pIdx];buildOrbit(cur);setView('orbit');orbT=0;
   $('inNo').textContent='MISSION '+(SEQ.slice(0,seqI+1).filter(function(q){return q!=='gas'}).length)+' / '+PL.length;$('inName').textContent=cur.name;$('inEv').textContent=cur.ev;$('inFl').textContent=cur.flavor;
   $('inTg').innerHTML=cur.pts.map(function(t){return '<li>'+t+'</li>'}).join('')+'<li>'+cur.nat+'に見つからないこと</li>';
   showOv('ovIntro');hudOn(false);$('guide').hidden=true}
 function startDescent(){mode='descent';descT=0;buildSurface(cur,pIdx);resetUfo();showOv(null);setView('orbit');
   ufoG.visible=true;layoutChips();$('flash').style.opacity=0;$banner('降下中… '+cur.name+'へ','good',2.4)}
-function resetUfo(){ufo.alt=0;ufo.x=0;ufo.z=0;ufo.vx=ufo.vz=0;ufo.y=hAt(0,0)+HOVER;ufo.yaw=0;ufo.scan=false;beamCd=0;
+function resetUfo(){ufo.alt=0;ufo.x=0;ufo.z=0;ufo.vx=ufo.vz=0;ufo.y=hAt(0,0)+HOVER;ufo.yaw=0;ufo.scan=false;beamCd=0;suckT=0;
   points.forEach(function(p){p.prog=0;p.done=false})}
 function retryPlanet(){startDescent()}
 function layoutChips(){var h='<span class="chip pl">'+cur.name+'</span>';points.forEach(function(p,i){h+='<span class="chip'+(p.done?' ok':'')+'" id="chip'+i+'">'+(p.done?'✓ ':'')+(i+1)+'</span>'});$('chips').innerHTML=h}
 function planetClear(){mode='clear';clearT=0;tone(520,1040,.5,'triangle',.12);setTimeout(function(){tone(780,1560,.5,'triangle',.1)},180);$banner('全ポイント調査完了！','good',2.6)}
 function showClear(){var last=seqI===SEQ.length-1;$('clName').textContent=cur.name+' 調査完了';
-  $('clRes').innerHTML='見つかった回数 <b>'+stat.spot+'</b>　　ビーム <b>'+stat.beam+'</b>';$('nextBtn').textContent=last?'ミッション終了':'次の星へ';showOv('ovClear');hudOn(false);$('scanw').classList.remove('on')}
+  $('clRes').innerHTML='見つかった回数 <b>'+stat.spot+'</b>　　ビーム <b>'+stat.beam+'</b>　　吸い込み <b>'+stat.suck+'</b>';$('nextBtn').textContent=last?'ミッション終了':'次の星へ';showOv('ovClear');hudOn(false);$('scanw').classList.remove('on')}
 function nextPlanet(){if(seqI>=SEQ.length-1){ending();return}seqI++;if(SEQ[seqI]==='gas'){gasEvent();return}pIdx=SEQ[seqI];intro()}
 function gameOver(why){if(mode==='over')return;mode='over';tone(300,60,.9,'sawtooth',.14);buzz([200,80,200]);
   $('ovTitleTx').textContent=why==='report'?'通報された…':'発見された…';
@@ -573,8 +578,53 @@ function stepPlay(dt){
     $('bSc').style.width=(near?near.prog*100:0)+'%';$('scanTx').textContent=ufo.scan&&inRing?'しらべ中… '+Math.round(near.prog*100)+'%':'Aを押しっぱなしでしらべる';
     if(inp.a&&ufo.alt>=10&&inRing)$banner('高すぎる！ Cをはなして下りよう','warn',.5);else if(ufo.scan&&!inRing&&near&&nd<RING*3)$banner('光の輪の中でAを押しっぱなし','warn',.4)}
   else if(mode==='clear'){clearT+=dt;$('scanw').classList.remove('on');if(clearT>2.4){showClear();mode='clearcard'}}
-  if(mode==='play'||mode==='clear')natives.forEach(function(n){updNative(n,dt,mode==='play')});
+  suckStep(dt);
+  if(mode==='play'||mode==='clear')natives.forEach(function(n){if(!n.sucked)updNative(n,dt,mode==='play')});
   beamCd=Math.max(0,beamCd-dt)}
+
+/* ---------- suction: A held = pull everything in, longer hold = stronger ---------- */
+var rkO=new THREE.Object3D(),suckT=0,suckPow=0,humT=0,
+  sRingA=new THREE.Mesh(new THREE.RingGeometry(.93,1,56),new THREE.MeshBasicMaterial({color:0xff5ad8,transparent:true,opacity:.4,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false})),
+  sRingB=new THREE.Mesh(new THREE.RingGeometry(.96,1,56),new THREE.MeshBasicMaterial({color:0xffffff,transparent:true,opacity:.4,side:THREE.DoubleSide,blending:THREE.AdditiveBlending,depthWrite:false}));
+sRingA.rotation.x=sRingB.rotation.x=-PI/2;sRingA.visible=sRingB.visible=false;scene.add(sRingA,sRingB);
+function rockPose(k,i,f){rkO.position.set(k.x,k.y,k.z);rkO.rotation.set(k.ex,k.ey,k.ez);rkO.scale.set(k.sx*f,k.sy*f,k.sz*f);rkO.updateMatrix();rockIM.setMatrixAt(i,rkO.matrix)}
+/* move p toward (tx,ty,tz) at speed sp; returns remaining distance */
+function pullTo(p,tx,ty,tz,sp,dt){var dx=tx-p.x,dy=ty-p.y,dz=tz-p.z,dd=Math.hypot(dx,dy,dz)||1e-6,st=Math.min(sp*dt,dd);p.x+=dx/dd*st;p.y+=dy/dd*st;p.z+=dz/dd*st;return dd-st}
+function suckStep(dt){
+  var on=mode==='play'&&inp.a,i;
+  suckT=on?suckT+dt:Math.max(0,suckT-dt*2.5);
+  var pw=clamp(suckT/5,0,1),R=16+48*pw,pull=10+120*pw,tx=ufo.x,ty=ufo.y-1.5,tz=ufo.z,dirty=false;suckPow=pw;
+  function spd(m,hd){return pull/Math.sqrt(m)*(1.3-Math.min(1,hd/R)*.6)}
+  /* rocks / trees */
+  if(rockIM)for(i=0;i<rocks.length;i++){var k=rocks[i];if(k.st===2)continue;
+    if(!on){if(k.st===1){var gy=hAt(k.x,k.z)+k.sy*.15;k.vy-=60*dt;k.y+=k.vy*dt;k.ey+=dt*2;if(k.y<=gy){k.y=gy;k.st=0;k.vy=0}rockPose(k,i,1);dirty=true}continue}
+    var hd=Math.hypot(tx-k.x,tz-k.z);if(k.st===0&&hd>R)continue;
+    k.st=1;k.vy=0;k.ey+=dt*6;var rem=pullTo(k,tx,ty,tz,spd(Math.max(1,k.sx),hd),dt);dirty=true;
+    if(rem<2.5){k.st=2;stat.suck++;rockPose(k,i,0)}else rockPose(k,i,clamp(rem/14,.2,1))}
+  if(dirty)rockIM.instanceMatrix.needsUpdate=true;
+  /* natives */
+  for(i=natives.length-1;i>=0;i--){var n=natives[i];
+    if(!on){if(n.sucked){n.sucked=false;n.state='wander';n.aw=0;n.wait=1;n.g.rotation.x=0;n.arms[0].rotation.z=n.arms[1].rotation.z=0}continue}
+    var nh=Math.hypot(tx-n.x,tz-n.z);if(!n.sucked&&nh>R)continue;
+    if(!n.sucked){n.sucked=true;n.y=n.g.position.y;n.g.rotation.z=0}
+    n.aw=Math.max(0,n.aw-dt*2);n.cone.visible=false;n.bang.visible=false;
+    var nr=pullTo(n,tx,ty,tz,spd(3,nh),dt);
+    n.g.position.set(n.x,n.y,n.z);n.g.rotation.y+=dt*8;n.arms[0].rotation.z=Math.sin(time*22)*.9;n.arms[1].rotation.z=-n.arms[0].rotation.z;
+    if(nr<3){n.g.visible=false;natives.splice(i,1);stat.suck++;tone(300,900,.18,'triangle',.1);buzz(30)}}
+  /* landmark props (only the decoration, the survey ring stays) */
+  points.forEach(function(p){if(!p.mg||p.mgGone)return;
+    if(!on){if(p.mgW){var g2=p.mgW;g2.vy=(g2.vy||0)-60*dt;g2.y+=g2.vy*dt;if(g2.y<=p.y){g2.y=p.y;p.mgW=null;p.mg.position.set(0,0,0);p.mg.scale.setScalar(1);p.mg.rotation.y=0}else p.mg.position.set(g2.x-p.x,g2.y-p.y,g2.z-p.z)}return}
+    var ph=Math.hypot(tx-p.x,tz-p.z);if(!p.mgW&&ph>R)return;
+    if(!p.mgW)p.mgW={x:p.x,y:p.y,z:p.z,vy:0};var w=p.mgW;w.vy=0;var pr=pullTo(w,tx,ty,tz,spd(14,ph),dt);
+    p.mg.position.set(w.x-p.x,w.y-p.y,w.z-p.z);p.mg.rotation.y+=dt*4;p.mg.scale.setScalar(clamp(pr/20,.15,1));
+    if(pr<3){p.mg.visible=false;p.mgGone=true;p.mgW=null;stat.suck++;$banner('建物ごと吸い込んだ！','good',1.6);tone(200,1000,.3,'sawtooth',.1);buzz(60)}});
+  /* visuals + hum */
+  var vis=on;sRingA.visible=sRingB.visible=vis;
+  if(vis){var rg0=Math.max(hAt(tx,tz),WL)+.8,ph2=(time*(1+pw*2))%1;sRingA.position.set(tx,rg0,tz);sRingA.scale.setScalar(R);sRingA.material.color.setHSL(.88-.82*pw,1,.6);sRingA.material.opacity=.3+.5*pw;
+    sRingB.position.set(tx,rg0+.1,tz);sRingB.scale.setScalar(Math.max(1,R*(1-ph2)));sRingB.material.opacity=.55*(1-ph2);
+    humT-=dt;if(humT<=0){humT=.11;tone(110+pw*300,90+pw*260,.12,'sawtooth',.03+pw*.03)}}
+  var sw=$('suckw');sw.classList.toggle('on',suckT>.05&&mode==='play');
+  if(suckT>.05){$('bSu').style.width=(pw*100)+'%';$('suckTx').textContent='吸引力 Lv'+(1+Math.floor(pw*4.999))+(pw>=1?'  MAX':'')}}
 
 function step(dt){
   time+=dt;bannerT-=dt;if(bannerT<=0)$('banner').classList.remove('show');
@@ -655,7 +705,7 @@ function drawRadar(){
 
 /* ---------- input ---------- */
 function tap(){aInit()}
-var padV={x:0,z:0},padS={a:0,b:0,c:0,any:0},padOn=false;
+var padV={x:0,z:0},padS={a:0,b:0,c:0,any:0},padOn=false,padReady=false,padArm=0;
 var dpad=$('dpad'),dpEls={up:dpad.querySelector('.up'),dn:dpad.querySelector('.dn'),lf:dpad.querySelector('.lf'),rt:dpad.querySelector('.rt')},dpId=null,keyV={x:0,z:0},dpV={x:0,z:0},kd={};
 function applyInp(){inp.x=dpV.x||keyV.x||padV.x;inp.z=dpV.z||keyV.z||padV.z;dpEls.up.classList.toggle('on',inp.z<0);dpEls.dn.classList.toggle('on',inp.z>0);dpEls.lf.classList.toggle('on',inp.x<0);dpEls.rt.classList.toggle('on',inp.x>0)}
 function dpMove(e){var r=dpad.getBoundingClientRect(),dx=e.clientX-(r.left+r.width/2),dy=e.clientY-(r.top+r.height/2),rad=r.width/2;
@@ -713,17 +763,19 @@ function pollPad(){
       bt=function(n){return !!(B[n]&&(B[n].pressed||B[n].value>.6))};
     /* D-pad buttons (standard mapping) */
     if(bt(12))vz-=1;if(bt(13))vz+=1;if(bt(14))vx-=1;if(bt(15))vx+=1;
-    /* hat switch axis (single Joy-Con in some browsers) */
-    if(ax.length>9&&ax[9]<1.1){var h=Math.round((ax[9]+1)*3.5);var HV=[[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]];if(HV[h]){vx+=HV[h][0];vz+=HV[h][1]}}
+    /* Joy-Con のハットだけ。余った軸が 0 で止まっているパッドを十字入力にしない */
+    if(ax.length>9){var hat=ax[9],steps=[-1,-0.714,-0.428,-0.142,0.142,0.428,0.714,1],hi=-1,hs;for(hs=0;hs<steps.length;hs++)if(Math.abs(hat-steps[hs])<0.08)hi=hs;var HV=[[0,-1],[1,-1],[1,0],[1,1],[0,1],[-1,1],[-1,0],[-1,-1]];if(hi>=0){vx+=HV[hi][0];vz+=HV[hi][1]}}
     /* analog sticks */
     for(var s=0;s<2;s++){var sx=ax[s*2]||0,sy=ax[s*2+1]||0;if(Math.hypot(sx,sy)>.38){var sn=Math.round(Math.atan2(sy,sx)/(PI/4))*(PI/4);vx+=Math.round(Math.cos(sn));vz+=Math.round(Math.sin(sn))}}
     /* buttons: Nintendo layout  B=0 A=1 Y=2 X=3 / L,R,ZL,ZR = 4..7 / -,+ = 8,9 */
     if(bt(1)||bt(3))a=1;if(bt(0)||bt(2))b=1;if(bt(4)||bt(5)||bt(6)||bt(7))c=1;if(bt(8)||bt(9)||bt(16))any=1}
   var info='';for(var q=0;q<gps.length;q++){var gq=gps[q];if(gq&&gq.connected){var pr=[];for(var w=0;w<gq.buttons.length;w++)if(gq.buttons[w]&&(gq.buttons[w].pressed||gq.buttons[w].value>.6))pr.push(w);info='🎮 '+String(gq.id||'pad').slice(0,38)+'  ボタン['+pr.join(',')+'] 軸['+gq.axes.slice(0,4).map(function(v){return v.toFixed(1)}).join(',')+']';break}}
   dbg(seen?info:'🎮 未検出（コントローラーのボタンを1回押してね）');
-  if(seen&&!padOn){padOn=true;$banner('コントローラー接続！ 十字/スティック=移動  A=しらべる  B=ビーム  L/R=のぼる','good',3.2)}
-  if(!seen&&padOn){padOn=false;padV.x=padV.z=0;applyInp();if(padS.a){padS.a=0;pressA(false)}if(padS.c){padS.c=0;pressC(false)}}
+  if(seen&&!padOn){padOn=true;if(mode==='play'||mode==='descent')$banner('コントローラーを認識しました','good',2.2)}
+  if(!seen&&padOn){padOn=false;padReady=false;padV.x=padV.z=0;applyInp();if(padS.a){padS.a=0;pressA(false)}if(padS.c){padS.c=0;pressC(false)}}
   if(!seen)return;
+  if(!padReady){padReady=true;padArm=performance.now()+800;padS.a=a;padS.b=b;padS.c=c;padS.any=any;return}
+  if(performance.now()<padArm){padS.a=a;padS.b=b;padS.c=c;padS.any=any;return}
   var nx=clamp(vx,-1,1),nz=clamp(vz,-1,1);if(nx!==padV.x||nz!==padV.z){padV.x=nx;padV.z=nz;applyInp()}
   if(a!==padS.a){padS.a=a;pressA(!!a)}
   if(b&&!padS.b)pressB();padS.b=b;
@@ -736,7 +788,7 @@ var last=performance.now();
 function frame(now){requestAnimationFrame(frame);var dt=Math.min(.05,(now-last)/1000);last=now;if(document.hidden){setPause(true);return}
   if(!paused){pollPad();step(dt)}if(mode==='clearcard'||mode==='over'){/* frozen after the card */}
   sync(dt);if(hasGL)renderer.render(scene,camera)}
-window.__so={step:function(dt){step(dt);sync(dt)},get mode(){return mode},set mode(v){mode=v},ufo:ufo,inp:inp,get natives(){return natives},get points(){return points},stat:function(){return stat},hAt:hAt,PL:PL,doBeam:doBeam,startRun:startRun,startDescent:startDescent,get gasI(){return gasI},gasNext:gasNext,gasEvent:gasEvent,nextPlanet:nextPlanet,get seqI(){return seqI},get descT(){return descT},set descT(v){descT=v},get WL(){return WL}};
+window.__so={get rocks(){return rocks},get suckPow(){return suckPow},step:function(dt){step(dt);sync(dt)},get mode(){return mode},set mode(v){mode=v},ufo:ufo,inp:inp,get natives(){return natives},get points(){return points},stat:function(){return stat},hAt:hAt,PL:PL,doBeam:doBeam,startRun:startRun,startDescent:startDescent,get gasI(){return gasI},gasNext:gasNext,gasEvent:gasEvent,nextPlanet:nextPlanet,get seqI(){return seqI},get descT(){return descT},set descT(v){descT=v},get WL(){return WL}};
 resize();toTitle();requestAnimationFrame(frame);
 })();
 </script>
