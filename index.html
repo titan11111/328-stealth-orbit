@@ -74,6 +74,12 @@ button:active{transform:scale(0.92)}
 .tg{margin:0;padding:0;list-style:none;display:grid;gap:5px;font-size:13px;color:#c4d3df}
 .tg li::before{content:"◎ ";color:var(--acc)}
 .res{font:600 13px/1.9 var(--f-d);letter-spacing:.06em;font-variant-numeric:tabular-nums}.res b{color:var(--acc)}
+.mapg{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:8px;width:100%}
+.mpb{display:flex;flex-direction:column;gap:3px;align-items:flex-start;text-align:left;padding:10px 12px;border:1px solid var(--line);background:rgba(8,13,22,.86);color:var(--fg);font:700 14px/1.2 var(--f-d);cursor:pointer;touch-action:none}
+.mpb[aria-pressed="true"]{border-color:var(--acc)}
+.mpb small{font:600 10px/1.5 var(--f-d);letter-spacing:.06em;color:var(--dim)}
+.mpb .arm{color:var(--crit)}
+.mpb .ok{color:var(--acc)}
 .fly{font-size:12px;line-height:1.7;color:var(--dim);max-width:34em}
 #ovEnd{background:radial-gradient(ellipse at 50% 100%,rgba(5,10,24,.2),rgba(2,4,9,.78))}
 .endl{opacity:0;transform:translateY(8px);animation:up 1.2s ease forwards}
@@ -170,7 +176,17 @@ button:active{transform:scale(0.92)}
       <h2 class="big" id="clName">調査完了</h2>
       <div class="res" id="clRes"></div>
       <button class="go" id="nextBtn" type="button">次の星へ</button>
+      <button class="mute" id="mapBtn" type="button" style="align-self:center;padding:14px 20px;font-size:13px">太陽系マップへもどる</button>
       <button class="mute" id="shBtn" type="button" style="padding:14px 20px;font-size:13px">UFO格納庫（強化）</button>
+    </div></div>
+
+    <div class="ov dim" id="ovMap" hidden><div class="card">
+      <div class="eyebrow">SOLAR SYSTEM</div>
+      <h2 class="big">どの星へ行く？</h2>
+      <p class="sub" id="mpNote"></p>
+      <div class="mapg" id="mpList"></div>
+      <button class="go" id="mpGo" type="button">次の星へ</button>
+      <button class="mute" id="mpSh" type="button" style="align-self:center;padding:14px 20px;font-size:13px">UFO格納庫（強化）</button>
     </div></div>
 
     <div class="ov dim" id="ovOver" hidden><div class="card">
@@ -326,7 +342,7 @@ function hAt(x,z){var fx=(x+SZ/2)/CELL,fz=(z+SZ/2)/CELL;fx=clamp(fx,0,NG-.001);f
   return G[k]*(1-u)*(1-v)+G[k+1]*u*(1-v)+G[k+NG+1]*(1-u)*v+G[k+NG+2]*u*v}
 function clearSurf(){
   while(surfG.children.length){var o=surfG.children.pop();o.traverse(function(m){if(m.geometry)m.geometry.dispose();if(m.material){if(m.material.map)m.material.map.dispose();m.material.dispose()}})}
-  points=[];natives=[];anims=[];rocks=[];rockIM=null;terrPos=null;G0=null}
+  points=[];natives=[];anims=[];rocks=[];rockIM=null;terrPos=null;G0=null;soDrones=[];soWalkers=[];soTnts=[]}
 function mkSprite(text,w,col){var c=document.createElement('canvas');c.width=512;c.height=128;var g=c.getContext('2d');g.font='700 54px "Noto Sans JP",sans-serif';g.textAlign='center';g.textBaseline='middle';
   g.lineWidth=10;g.strokeStyle='rgba(0,0,0,.75)';g.strokeText(text,256,64);g.fillStyle=col;g.fillText(text,256,64);
   var s=new THREE.Sprite(new THREE.SpriteMaterial({map:new THREE.CanvasTexture(c),transparent:true,depthTest:false,fog:false}));s.scale.set(w,w/4,1);s.renderOrder=20;return s}
@@ -474,6 +490,7 @@ function buildSurface(p){
   var NN=p.name==='地球'?7:5;
   for(i=0;i<NN;i++){var home=points[i%3],hx,hz,hy2,tr2=0;do{hx=home.x+(r()-.5)*140;hz=home.z+(r()-.5)*140;hy2=hAt(hx,hz);tr2++}while((hy2<WL+1.5||Math.hypot(hx-home.x,hz-home.z)<RING+3)&&tr2<40);
     natives.push(mkNative(p,i,hx,hz,r))}
+  soBuildHiTech(p);
 }
 function mkNative(p,id,x,z,r){
   var g=new THREE.Group(),earth=p.name==='地球',skin=earth?[0xe8b88c,0xc68e60,0xf3d2b0][id%3]:p.natCol,shirt=earth?[0xd04a4a,0x3a6fd0,0xe0b030,0x3aa860][id%4]:p.natCol,pants=earth?0x2c3a58:M0(p),legs=[],arms=[];
@@ -490,7 +507,7 @@ function mkNative(p,id,x,z,r){
     if(p.name==='火星'){[-.4,.4].forEach(function(s){var an=new THREE.Mesh(CY(.05,.05,1.4,4),sk);an.position.set(s,5.5,0);g.add(an);var bl=new THREE.Mesh(SP(.18,6),new THREE.MeshBasicMaterial({color:0xffee66}));bl.position.set(s,6.2,0);g.add(bl)})}
     if(p.name==='冥王星'){var cr=new THREE.Mesh(CN(.5,1.5,5),new THREE.MeshBasicMaterial({color:0xaee0ff,transparent:true,opacity:.85}));cr.position.y=5.7;g.add(cr)}
     if(p.name==='金星'){var gl=new THREE.Mesh(SP(1.3,8),new THREE.MeshBasicMaterial({color:0xffd850,transparent:true,opacity:.2,depthWrite:false}));gl.position.y=3.4;g.add(gl)}}
-  if(loopN>0){var gun=new THREE.Mesh(CY(.28,.4,2,6),new THREE.MeshPhongMaterial({color:0x333a44,emissive:0x330808}));gun.position.set(1.15,4.1,0);gun.rotation.z=-.4;g.add(gun);var gt=new THREE.Mesh(SP(.32,6),new THREE.MeshBasicMaterial({color:({bolt:0xff4455,homing:0xff9a2a,net:0xb8ff6a,laser:0xc070ff})[weaponOf(id)]}));gt.position.set(1.55,5,0);g.add(gt)}
+  if(soArm>0){var wk0=weaponOf(id),baz=wk0==='bazooka';var gun=new THREE.Mesh(CY(baz?.5:.28,baz?.62:.4,baz?3:2,6),new THREE.MeshPhongMaterial({color:0x333a44,emissive:0x330808}));gun.position.set(1.15,4.1,0);gun.rotation.z=-.4;g.add(gun);var gt=new THREE.Mesh(SP(baz?.5:.32,6),new THREE.MeshBasicMaterial({color:({bolt:0xff4455,homing:0xff9a2a,net:0xb8ff6a,bazooka:0xff8a1a,laser:0xc070ff})[wk0]}));gt.position.set(baz?1.75:1.55,baz?5.5:5,0);g.add(gt)}
   var shd=new THREE.Mesh(new THREE.CircleGeometry(1.5,12),new THREE.MeshBasicMaterial({color:0x000000,transparent:true,opacity:.35,depthWrite:false}));shd.rotation.x=-PI/2;shd.position.y=.12;g.add(shd);
   var cone=new THREE.Mesh(new THREE.CircleGeometry(SIGHT,28,-PI/2-FOV,FOV*2),new THREE.MeshBasicMaterial({color:0xffe9a0,transparent:true,opacity:.17,side:THREE.DoubleSide,depthWrite:false}));cone.rotation.x=-PI/2;cone.position.y=.9;
   var bang=mkBang();bang.position.y=7.4;bang.visible=false;g.add(cone,bang);surfG.add(g);
@@ -511,6 +528,15 @@ var stat={t:0,spot:0,beam:0,erase:0,suck:0,en:0},descT=0,clearT=0,beamCd=0,beamF
 var up={sh:0,st:0,su:0,mv:0},loopN=0,hp=1,invul=0,hpShown='',UCOST=[100,200,350],snareT=0,seenW={},
   UPS=[{k:'sh',n:'シールド',d:'対UFO兵器の直撃に耐えられる回数 +1'},{k:'st',n:'ステルス',d:'住人に見つかりにくくなる'},{k:'su',n:'吸引力',d:'吸い込みの範囲と力 +15%'},{k:'mv',n:'推進',d:'移動速度 +10%'}];
 var HOVER=7.5,MAXSP=40,ALT_MAX=75,SEQ=[0,1,2,3,'gas',4],seqI=0,gasI=0,gasT=0;
+/* ---------- solar-system map / re-visit armament (so* prefix: see LEARNINGS 2026-10-21) ---------- */
+var soVis=[0,0,0,0,0],soDone=[false,false,false,false,false],soGas=false,soArm=0,soAnchorNote=false,
+  soDrones=[],soWalkers=[],soTnts=[];
+function soArmOf(i){return loopN+soVis[i]}          /* 武装Lv = 周回数 + その星を調べ終えた回数 */
+function soKit(a){return{armed:a>=1,tnt:a>=1,drone:a>=1?Math.min(3,a):0,bazooka:a>=2,walker:a>=2?Math.min(2,a-1):0,laser:a>=3}}
+function soDoneN(){var c=0,i;for(i=0;i<soDone.length;i++)if(soDone[i])c++;return c}
+function soAllDone(){return soDoneN()>=PL.length}
+function soNextIdx(){for(var i=0;i<PL.length;i++)if(!soDone[i])return i;return -1}
+function soKitText(a){var k=soKit(a),L=[];if(k.armed)L.push('弾・追尾ミサイル・ネット');if(k.tnt)L.push('TNT爆弾の罠');if(k.drone)L.push('偵察ドローン×'+k.drone);if(k.bazooka)L.push('バズーカ');if(k.walker)L.push('歩く兵器×'+k.walker);if(k.laser)L.push('レーザー');return L.join('／')}
 
 function $banner(t,cls,sec){var b=$('banner');b.textContent=t;b.className='banner show '+(cls||'');bannerT=sec||2}
 
@@ -521,15 +547,19 @@ function setView(v){
     hemi.color.setHex(cur.hemi[0]);hemi.groundColor.setHex(cur.hemi[1]);hemi.intensity=cur.hemi[2];sunL.intensity=cur.sun}
   else{scene.background=hex(0x01030a);scene.fog=null;starMat.opacity=1;stars.visible=true;hemi.color.setHex(0x6070a0);hemi.groundColor.setHex(0x101020);hemi.intensity=.35;sunL.intensity=1.5}
   scanCone.visible=false;beamM.visible=false}
-function showOv(id){paused=false;$('ovPause').hidden=true;var pb=$('pauseBtn');if(pb){pb.setAttribute('aria-pressed','false');pb.textContent='停止'}['ovTitle','ovIntro','ovGas','ovClear','ovOver','ovEnd'].forEach(function(k){$(k).hidden=(k!==id)});
+function showOv(id){paused=false;$('ovPause').hidden=true;var pb=$('pauseBtn');if(pb){pb.setAttribute('aria-pressed','false');pb.textContent='停止'}['ovTitle','ovIntro','ovGas','ovClear','ovMap','ovOver','ovEnd'].forEach(function(k){$(k).hidden=(k!==id)});
   var play=(id===null);hudOn(play)}
 function hudOn(on){$('hud').hidden=!on;$('enw').hidden=!on;$('hudb').hidden=!on;document.querySelector('.minimap').style.display=on?'':'none'}
 
 /* ---------- flow ---------- */
 function toTitle(){mode='title';pIdx=2;cur=PL[2];buildOrbit(cur);setView('orbit');showOv('ovTitle');hudOn(false);$('guide').hidden=true;$('scanw').classList.remove('on')}
-function startRun(keep){var en0=keep?stat.en:0;stat={t:0,spot:0,beam:0,erase:0,suck:0,en:en0};seenW={};if(!keep){up={sh:0,st:0,su:0,mv:0};loopN=0}seqI=0;pIdx=SEQ[0];intro()}
-function intro(){mode='intro';cur=PL[pIdx];buildOrbit(cur);setView('orbit');orbT=0;
-  $('inNo').textContent='MISSION '+(SEQ.slice(0,seqI+1).filter(function(q){return q!=='gas'}).length)+' / '+PL.length;$('inName').textContent=cur.name;$('inEv').textContent=cur.ev;$('inFl').textContent=(loopN>0?'【'+(loopN+1)+'周目】文明が発展し、住人は対UFO兵器（弾・追尾ミサイル・ネット'+(loopN>=2?'・レーザー':'')+'）を持っている。見つかると撃ってくる。避けるか、Aで吸い込めばエネルギーに。追尾ミサイルはBで撃ち落とせる。　':'')+cur.flavor;
+function startRun(keep,toMap){var en0=keep?stat.en:0;stat={t:0,spot:0,beam:0,erase:0,suck:0,en:en0};seenW={};if(!keep){up={sh:0,st:0,su:0,mv:0};loopN=0;soVis=[0,0,0,0,0]}
+  soDone=[false,false,false,false,false];soGas=false;seqI=0;
+  if(toMap){openMap();return}
+  pIdx=SEQ[0];intro()}
+function intro(){mode='intro';cur=PL[pIdx];soArm=soArmOf(pIdx);buildOrbit(cur);setView('orbit');orbT=0;
+  $('inNo').textContent='MISSION '+Math.min(PL.length,soDoneN()+1)+' / '+PL.length+(loopN>0?'　（'+(loopN+1)+'周目）':'');$('inName').textContent=cur.name+(soDone[pIdx]?'（再調査）':'');$('inEv').textContent=cur.ev;
+  $('inFl').textContent=(soArm>0?'【武装Lv'+soArm+'】前回のUFO襲来を踏まえ、'+cur.nat+'はハイテク技術を確保して武装している（'+soKitText(soArm)+'）。建物は対UFOアンカーで固定され、吸い込みに時間がかかる。弾・ミサイル・ネット・TNT・ドローンはAで吸い込めばエネルギーに、追尾ミサイルと歩く兵器はBのビームで止められる。　':'')+cur.flavor;
   $('inTg').innerHTML=cur.pts.map(function(t){return '<li>'+t+'</li>'}).join('')+'<li>'+cur.nat+'に見つからないこと</li>';
   showOv('ovIntro');hudOn(false);$('guide').hidden=true}
 function startDescent(){mode='descent';descT=0;buildSurface(cur,pIdx);resetUfo();showOv(null);setView('orbit');
@@ -538,10 +568,22 @@ function resetUfo(){ufo.alt=0;ufo.x=0;ufo.z=0;ufo.vx=ufo.vz=0;ufo.y=hAt(0,0)+HOV
   points.forEach(function(p){p.prog=0;p.done=false})}
 function retryPlanet(){startDescent()}
 function layoutChips(){var h='<span class="chip pl">'+cur.name+'</span>';points.forEach(function(p,i){h+='<span class="chip'+(p.done?' ok':'')+'" id="chip'+i+'">'+(p.done?'✓ ':'')+(i+1)+'</span>'});$('chips').innerHTML=h}
-function planetClear(){mode='clear';clearT=0;tone(520,1040,.5,'triangle',.12);setTimeout(function(){tone(780,1560,.5,'triangle',.1)},180);$banner('全ポイント調査完了！','good',2.6)}
-function showClear(){var last=seqI===SEQ.length-1;$('clName').textContent=cur.name+' 調査完了';
-  $('clRes').innerHTML='見つかった回数 <b>'+stat.spot+'</b>　　ビーム <b>'+stat.beam+'</b>　　吸い込み <b>'+stat.suck+'</b>　　⚡エネルギー <b>'+Math.floor(stat.en)+'</b>';$('nextBtn').textContent=last?'ミッション終了':'次の星へ';showOv('ovClear');hudOn(false);$('scanw').classList.remove('on')}
-function nextPlanet(){if(seqI>=SEQ.length-1){ending();return}seqI++;if(SEQ[seqI]==='gas'){gasEvent();return}pIdx=SEQ[seqI];intro()}
+function planetClear(){mode='clear';clearT=0;soDone[pIdx]=true;soVis[pIdx]++;tone(520,1040,.5,'triangle',.12);setTimeout(function(){tone(780,1560,.5,'triangle',.1)},180);$banner('全ポイント調査完了！','good',2.6)}
+function showClear(){var nx=soNextIdx();$('clName').textContent=cur.name+' 調査完了';
+  $('clRes').innerHTML='見つかった回数 <b>'+stat.spot+'</b>　　ビーム <b>'+stat.beam+'</b>　　吸い込み <b>'+stat.suck+'</b>　　⚡エネルギー <b>'+Math.floor(stat.en)+'</b><br>'+cur.name+'は次に来ると <b>武装Lv'+soArmOf(pIdx)+'</b>（'+soKitText(soArmOf(pIdx))+'）';
+  $('nextBtn').textContent=nx<0?'ミッション終了':'次の星へ（'+PL[nx].name+'）';showOv('ovClear');hudOn(false);$('scanw').classList.remove('on')}
+function nextPlanet(){var i=soNextIdx();if(i<0){ending();return}soGoTo(i)}
+function soGoTo(i){pIdx=i;if(i===PL.length-1&&!soGas){gasEvent();return}intro()}
+function renderMap(){var h='',i,nx=soNextIdx();
+  for(i=0;i<PL.length;i++){var a=soArmOf(i),dn=soDone[i];
+    h+='<button class="mpb" type="button" data-i="'+i+'" aria-pressed="'+(i===pIdx)+'">'+PL[i].name+(dn?' <span class="ok">✓</span>':'')+
+      '<small>'+(dn?'この周は調査済み（再調査できる）':'未調査')+'</small>'+
+      '<small'+(a>0?' class="arm"':'')+'>'+(a>0?'武装Lv'+a+'：'+soKitText(a):'武装なし')+'</small></button>'}
+  $('mpList').innerHTML=h;
+  $('mpNote').textContent='調査した星にもう一度行くと、住人は前回のUFO襲来を踏まえてハイテク武装している。いま ⚡'+Math.floor(stat.en)+' エネルギー。';
+  $('mpGo').textContent=nx<0?'終幕へ':'次の星へ（'+PL[nx].name+'）';
+  $('mpList').querySelectorAll('button').forEach(function(b){b.onclick=function(){tap();soGoTo(+b.getAttribute('data-i'))}})}
+function openMap(){mode='map';cur=PL[pIdx];buildOrbit(cur);setView('orbit');orbT=0;renderMap();showOv('ovMap');hudOn(false);$('guide').hidden=true;$('scanw').classList.remove('on')}
 function gameOver(why){if(mode==='over')return;mode='over';tone(300,60,.9,'sawtooth',.14);buzz([200,80,200]);
   $('ovTitleTx').textContent=why==='shot'?'撃墜された…':why==='report'?'通報された…':'発見された…';
   $('ovMsg').textContent=(why==='shot'?cur.nat+'の対UFO兵器に撃ち落とされた。シールドを強化して、弾は吸い込んで防ごう。':why==='report'?cur.nat+'が仲間に「UFOを見た！」と知らせてしまった。':'')+'同胞から叱られてしまう。もう一度、そっと調べよう。';
@@ -551,7 +593,7 @@ function gameOver(why){if(mode==='over')return;mode='over';tone(300,60,.9,'sawto
 /* ---------- gas giants fly-by event ---------- */
 function gasShow(){var gp=GAS[gasI];buildOrbit(gp);gasT=0;$('gsNo').textContent='GAS GIANTS  '+(gasI+1)+' / '+GAS.length;$('gsName').textContent=gp.name;$('gsTx').textContent=gp.txt;$('gsBtn').textContent=gasI===GAS.length-1?'冥王星へ':'つぎへ'}
 function gasEvent(){mode='gas';gasI=0;setView('orbit');gasShow();showOv('ovGas');hudOn(false);$('guide').hidden=true;$('scanw').classList.remove('on')}
-function gasNext(){if(gasI>=GAS.length-1){seqI++;pIdx=SEQ[seqI];intro();return}gasI++;gasShow()}
+function gasNext(){if(gasI>=GAS.length-1){soGas=true;pIdx=PL.length-1;intro();return}gasI++;gasShow()}
 
 /* ---------- ending ---------- */
 function ending(){mode='ending';orbT=0;setView('orbit');orbitG.visible=false;scene.background=hex(0x01030a);hudOn(false);$('guide').hidden=true;
@@ -560,16 +602,16 @@ function ending(){mode='ending';orbT=0;setView('orbit');orbitG.visible=false;sce
   for(i=0;i<L.length;i++){h+='<p class="sub endl" style="animation-delay:'+d+'s;font-size:16px">'+L[i]+'</p>';d+=1.9}
   h+='<h2 class="ttl endl" style="animation-delay:'+d+'s;font-size:clamp(26px,8vw,44px)">THE <em>END</em></h2>';d+=1.2;
   h+='<div class="res endl" style="animation-delay:'+d+'s">ランク <b style="font-size:22px">'+rank+'</b><br>時間 <b>'+mm+':'+ss+'</b>　見つかった <b>'+stat.spot+'</b>　記憶消去 <b>'+stat.erase+'</b></div>';d+=.8;
-  h+='<button class="go endl" id="cycBtn" type="button" style="animation-delay:'+d+'s">'+(loopN+2)+'周目へ</button>';d+=.3;
+  h+='<button class="go endl" id="cycBtn" type="button" style="animation-delay:'+d+'s">また太陽系へいく（'+(loopN+2)+'周目）</button>';d+=.3;
   h+='<button class="mute endl" id="shBtn2" type="button" style="animation-delay:'+d+'s;padding:14px 20px;font-size:13px">UFO格納庫（強化）</button>';d+=.3;
   h+='<button class="go endl" id="toTitle" type="button" style="animation-delay:'+d+'s">タイトルへ</button>';
-  $('endCard').innerHTML=h;showOv('ovEnd');$('toTitle').onclick=function(){tap(); toTitle()};$('cycBtn').onclick=function(){tap();loopN++;startRun(true)};$('shBtn2').onclick=openShop;ufoG.visible=true;shadow.visible=false}
+  $('endCard').innerHTML=h;showOv('ovEnd');$('toTitle').onclick=function(){tap(); toTitle()};$('cycBtn').onclick=function(){tap();loopN++;startRun(true,true)};$('shBtn2').onclick=openShop;ufoG.visible=true;shadow.visible=false}
 
 /* ---------- natives ---------- */
 function los(ax,az,ay,bx,bz,by){for(var i=1;i<12;i++){var t=i/12;if(hAt(lerp(ax,bx,t),lerp(az,bz,t))>lerp(ay,by,t)+.3)return false}return true}
 function updNative(n,dt,playing){
   var d=Math.hypot(ufo.x-n.x,ufo.z-n.z);
-  if(playing&&loopN>0&&(n.state==='alert'||(n.state==='wander'&&n.aw>.5))&&d<SIGHT*1.5){n.fire=(n.fire===undefined?1.2:n.fire)-dt;if(n.fire<=0){var wk=weaponOf(n.id);if(wk==='laser'){if(!n.lz){n.lz={t:0,tx:ufo.x,ty:ufo.y,tz:ufo.z,p:null,f:0};weaponNote('laser')}n.fire=Math.max(2.4,4.4-.6*loopN)}else{fireShot(n,wk);n.fire=Math.max(1.6,wk==='bolt'?3.4-.7*loopN:5-.6*loopN)}}}
+  if(playing&&soArm>0&&(n.state==='alert'||(n.state==='wander'&&n.aw>.5))&&d<SIGHT*1.5){var s1=Math.max(0,soArm-1);n.fire=(n.fire===undefined?1.2:n.fire)-dt;if(n.fire<=0){var wk=weaponOf(n.id);if(wk==='laser'){if(!n.lz){n.lz={t:0,tx:ufo.x,ty:ufo.y,tz:ufo.z,p:null,f:0};weaponNote('laser')}n.fire=Math.max(2.4,4.4-.6*s1)}else{fireShot(n,wk);n.fire=Math.max(1.6,wk==='bolt'?3.4-.7*s1:wk==='bazooka'?6-.5*s1:5-.6*s1)}}}
   if(n.state==='stun'){n.stun-=dt;if(n.stun<=0){n.state='wander';n.aw=0;n.g.rotation.z=0;n.wait=1}}
   else if(n.state==='alert'){n.t-=dt;n.face+=angDiff(Math.atan2(ufo.x-n.x,ufo.z-n.z),n.face)*Math.min(1,dt*8);
     if(n.t<=0){n.state='flee';n.rep=6.5;$banner('逃げた！ビームで止めて！','crit',2.2);tone(900,400,.3,'square',.1)}}
@@ -595,7 +637,17 @@ function doBeam(){
   if(hm){beamCd=.7;stat.beam++;tone(1400,200,.28,'sawtooth',.11);buzz(40);hm.on=false;hm.m.visible=false;stat.en+=8;beamFx=.28;beamM.userData.t={x:hm.x,y:hm.y,z:hm.z};$banner('撃ち落とした！','good',1.2);return}
   natives.forEach(function(n){if(n.state==='alert'||n.state==='flee'||(n.state==='wander'&&n.aw>.45)){var d=Math.hypot(n.x-ufo.x,n.z-ufo.z);if(d<bd){bd=d;best=n}}});
   beamCd=.7;stat.beam++;tone(1400,200,.28,'sawtooth',.11);buzz(40);
-  if(!best){$banner('ねらう相手がいない（見つかった時に使おう）','warn',1.6);return}
+  if(!best){
+    /* 一番近い機械をねらう（ドローン優先にすると、歩く兵器にビームが通らなくなる） */
+    var dr=null,dd3=120,wk=null,wd=130,i3;
+    for(i3=0;i3<soDrones.length;i3++){var q3=Math.hypot(soDrones[i3].x-ufo.x,soDrones[i3].z-ufo.z);if(q3<dd3){dd3=q3;dr=soDrones[i3]}}
+    for(i3=0;i3<soWalkers.length;i3++){var w3=soWalkers[i3],q4=Math.hypot(w3.x-ufo.x,w3.z-ufo.z);if(q4<wd){wd=q4;wk=w3}}
+    if(dr&&(!wk||dd3<=wd)){beamFx=.28;beamM.userData.t={x:dr.x,y:dr.y,z:dr.z};soFx(dr.x,dr.y,dr.z,7);soDrones.splice(soDrones.indexOf(dr),1);dr.g.visible=false;stat.en+=20;$banner('ドローンを撃ち落とした！ ⚡+20','good',1.4);return}
+    if(wk){beamFx=.28;beamM.userData.t={x:wk.x,y:wk.y+11,z:wk.z};wk.hp--;wk.stun=2.2;
+      if(wk.hp<=0){soFx(wk.x,wk.y+10,wk.z,13);wk.g.visible=false;soWalkers.splice(soWalkers.indexOf(wk),1);stat.en+=60;$banner('歩く兵器を破壊した！ ⚡+60','good',1.8)}
+      else $banner('歩く兵器に命中！ あと '+wk.hp+' 発','good',1.4);
+      return}
+    $banner('ねらう相手がいない（見つかった時に使おう）','warn',1.6);return}
   best.state='stun';best.stun=10;best.aw=0;best.rep=0;stat.erase++;beamFx=.28;beamM.userData.t={x:best.x,y:hAt(best.x,best.z)+1.5,z:best.z};
   $banner('命中！ 記憶を消した','good',1.6);tone(600,1500,.22,'triangle',.12)}
 
@@ -623,26 +675,33 @@ function stepPlay(dt){
   else if(mode==='clear'){clearT+=dt;$('scanw').classList.remove('on');if(clearT>2.4){showClear();mode='clearcard'}}
   suckStep(dt);
   if(mode==='play'||mode==='clear')natives.forEach(function(n){if(!n.sucked)updNative(n,dt,mode==='play')});
+  soHiStep(dt,mode==='play');
   beamCd=Math.max(0,beamCd-dt)}
 
-/* ---------- anti-UFO weapons (loop 2+): bolt / homing / net / laser ---------- */
-var wpG=new THREE.Group(),wpLz=[],wpNet,wpMsg={bolt:'弾！ 避けるか、Aで吸い込もう',homing:'追尾ミサイル！ Bで撃ち落とせる',net:'ネット！ 当たると動けない。避けるか吸い込もう',laser:'レーザーで狙われている！ 光の線の先から動こう'};
+/* ---------- anti-UFO weapons (re-visit): bolt / homing / net / bazooka / laser / drone / walker / TNT ---------- */
+var wpG=new THREE.Group(),wpLz=[],wpNet,wpMsg={bolt:'弾！ 避けるか、Aで吸い込もう',homing:'追尾ミサイル！ Bで撃ち落とせる',net:'ネット！ 当たると動けない。避けるか吸い込もう',bazooka:'バズーカ！ 着弾の爆風も当たる。離れるか、Aで吸い込もう',laser:'レーザーで狙われている！ 光の線の先から動こう',
+  drone:'偵察ドローン！ 見つかると住人に知らせる。AでまるごとすいこもうかBで落とそう',walker:'歩く兵器！ 重すぎて吸い込めない。Bのビーム3発で止まる',tnt:'TNT爆弾の罠！ 近づくと点滅して爆発する。先にAで吸い込もう'};
 function wpAdd(col,op){return new THREE.MeshBasicMaterial({color:col,transparent:true,opacity:op||.95,blending:THREE.AdditiveBlending,depthWrite:false,side:THREE.DoubleSide})}
 scene.add(wpG);
-for(var wpI=0;wpI<14;wpI++){var wpS=new THREE.Group(),wpTr=new THREE.Mesh(new THREE.TorusGeometry(3.2,.35,6,18),wpAdd(0xb8ff6a));wpTr.rotation.x=PI/2-.5;
-  wpS.add(new THREE.Mesh(new THREE.SphereGeometry(1.3,8,6),wpAdd(0xff4455)),new THREE.Mesh(new THREE.SphereGeometry(1.7,8,6),wpAdd(0xff9a2a)),wpTr);wpS.visible=false;wpG.add(wpS);
+for(var wpI=0;wpI<18;wpI++){var wpS=new THREE.Group(),wpTr=new THREE.Mesh(new THREE.TorusGeometry(3.2,.35,6,18),wpAdd(0xb8ff6a));wpTr.rotation.x=PI/2-.5;
+  wpS.add(new THREE.Mesh(new THREE.SphereGeometry(1.3,8,6),wpAdd(0xff4455)),new THREE.Mesh(new THREE.SphereGeometry(1.7,8,6),wpAdd(0xff9a2a)),wpTr,new THREE.Mesh(new THREE.SphereGeometry(2.5,10,8),wpAdd(0xff8a1a)));wpS.visible=false;wpG.add(wpS);
   shots.push({m:wpS,on:false,kind:'bolt',sp:30,hr:4.6,x:0,y:0,z:0,vx:0,vy:0,vz:0,life:0})}
 for(var wpJ=0;wpJ<4;wpJ++){var wpL=new THREE.Mesh(new THREE.CylinderGeometry(1,1,1,6,1,true),wpAdd(0xff4455,.4));wpL.visible=false;wpG.add(wpL);wpLz.push({m:wpL,owner:null})}
 wpNet=new THREE.Mesh(new THREE.TorusGeometry(5.5,.35,6,20),wpAdd(0xb8ff6a,.8));wpNet.rotation.x=PI/2;wpNet.visible=false;scene.add(wpNet);
-function weaponOf(id){var pool=loopN>=2?['bolt','homing','net','laser']:['bolt','homing','net'];return pool[id%pool.length]}
+function weaponOf(id){var k=soKit(soArm),pool=['bolt','homing','net'];if(k.bazooka)pool.push('bazooka');if(k.laser)pool.push('laser');return pool[id%pool.length]}
 function weaponNote(k){if(!seenW[k]){seenW[k]=1;$banner(wpMsg[k],'crit',2.8)}}
 function fireShot(n,kind){var s=null,i;for(i=0;i<shots.length;i++)if(!shots[i].on){s=shots[i];break}if(!s)return;
-  var sx=n.x,sy=hAt(n.x,n.z)+4,sz=n.z,sp=kind==='homing'?24+3*loopN:kind==='net'?20+2*loopN:34+7*loopN,lead=kind==='homing'?0:kind==='net'?.4:.6,t=Math.hypot(ufo.x-sx,ufo.z-sz)/sp,dx=ufo.x+ufo.vx*t*lead-sx,dy=ufo.y-sy,dz=ufo.z+ufo.vz*t*lead-sz,l=Math.hypot(dx,dy,dz)||1,ki=kind==='bolt'?0:kind==='homing'?1:2;
-  s.on=true;s.kind=kind;s.sp=sp;s.hr=kind==='net'?5.5:kind==='homing'?4.2:4.6;s.x=sx;s.y=sy;s.z=sz;s.vx=dx/l*sp;s.vy=dy/l*sp;s.vz=dz/l*sp;s.life=kind==='bolt'?5:7;
-  s.m.children.forEach(function(c,ci){c.visible=(ci===ki)});s.m.visible=true;s.m.position.set(sx,sy,sz);tone(kind==='net'?150:200,kind==='net'?400:900,.2,'square',.07);weaponNote(kind)}
+  var s1=Math.max(0,soArm-1),sx=n.x,sy=(n.fy!==undefined?n.fy:hAt(n.x,n.z)+4),sz=n.z,
+    sp=kind==='homing'?24+3*s1:kind==='net'?20+2*s1:kind==='bazooka'?17+2*s1:34+7*s1,
+    lead=kind==='homing'?0:kind==='net'?.4:kind==='bazooka'?.9:.6,
+    t=Math.hypot(ufo.x-sx,ufo.z-sz)/sp,dx=ufo.x+ufo.vx*t*lead-sx,dy=ufo.y-sy,dz=ufo.z+ufo.vz*t*lead-sz,l=Math.hypot(dx,dy,dz)||1,
+    ki=kind==='bolt'?0:kind==='homing'?1:kind==='net'?2:3;
+  s.on=true;s.kind=kind;s.sp=sp;s.hr=kind==='net'?5.5:kind==='homing'?4.2:kind==='bazooka'?6.5:4.6;s.x=sx;s.y=sy;s.z=sz;s.vx=dx/l*sp;s.vy=dy/l*sp;s.vz=dz/l*sp;s.life=kind==='bolt'?5:kind==='bazooka'?8:7;
+  s.m.children.forEach(function(c,ci){c.visible=(ci===ki)});s.m.visible=true;s.m.position.set(sx,sy,sz);tone(kind==='net'?150:kind==='bazooka'?110:200,kind==='net'?400:kind==='bazooka'?260:900,.2,'square',.07);weaponNote(kind)}
 function clearShots(){var i;for(i=0;i<shots.length;i++){shots[i].on=false;shots[i].m.visible=false}for(i=0;i<wpLz.length;i++){wpLz[i].owner=null;wpLz[i].m.visible=false}natives.forEach(function(n){n.lz=null});wpNet.visible=false}
 function damageUfo(){hp--;invul=1;tone(120,60,.4,'sawtooth',.14);buzz(120);if(hp<=0)gameOver('shot');else $banner('被弾！ シールド残り '+hp,'crit',1.4)}
-function hitUfo(s){s.on=false;s.m.visible=false;if(s.kind==='net'){snareT=2.5;invul=.6;tone(180,90,.4,'sawtooth',.12);buzz(80);$banner('ネットにからまった！ しばらく動けない','crit',1.8);return}damageUfo()}
+function hitUfo(s){s.on=false;s.m.visible=false;if(s.kind==='net'){snareT=2.5;invul=.6;tone(180,90,.4,'sawtooth',.12);buzz(80);$banner('ネットにからまった！ しばらく動けない','crit',1.8);return}
+  if(s.kind==='bazooka'){soBoom(s.x,s.y,s.z,16);return}damageUfo()}
 function setLz(m,n,z,mode){var ax=n.x,ay=hAt(n.x,n.z)+4,az=n.z,dx=z.tx-ax,dy=z.ty-ay,dz=z.tz-az,len=Math.hypot(dx,dy,dz)||1,w=mode===0?.5:mode===1?1.1:2.4;
   m.visible=true;m.position.set(ax+dx/2,ay+dy/2,az+dz/2);m.scale.set(w,len,w);m.quaternion.setFromUnitVectors(new THREE.Vector3(0,1,0),new THREE.Vector3(dx/len,dy/len,dz/len));
   m.material.color.setHex(mode===2?0xffffff:mode===1?0xff2a3a:0xffa040);m.material.opacity=mode===2?.95:mode===1?.7:.35}
@@ -657,6 +716,83 @@ function laserStep(dt){var i,p;
     if(z.t<1.3)setLz(z.p.m,n,z,z.t<.8?0:1);
     else{if(!z.f){z.f=.18;if(invul<=0&&Math.hypot(ufo.x-z.tx,ufo.y-z.ty,ufo.z-z.tz)<7)damageUfo();tone(1200,300,.2,'sawtooth',.1)}
       z.f-=dt;setLz(z.p.m,n,z,2);if(z.f<=0)n.lz=null}})}
+
+/* ---------- hi-tech defences on a re-visited planet: drone / bazooka walker / TNT ---------- */
+var soBlast=new THREE.Mesh(new THREE.SphereGeometry(1,14,10),wpAdd(0xffb040,.7)),soBlastT=0,soBlastR=1,soWkNote=false;
+soBlast.visible=false;scene.add(soBlast);
+function soFx(x,y,z,R){soBlast.position.set(x,y,z);soBlastR=R;soBlastT=.42;soBlast.visible=true;soBlast.scale.setScalar(R*.3);soBlast.material.opacity=.7;tone(140,60,.4,'sawtooth',.12)}
+function soBoom(x,y,z,R){
+  soFx(x,y,z,R);tone(90,40,.5,'sawtooth',.16);buzz([90,40,90]);
+  if(mode==='play'&&invul<=0&&Math.hypot(ufo.x-x,ufo.y-y,ufo.z-z)<R)damageUfo();
+  natives.forEach(function(n){if(!n.sucked&&n.state!=='stun'&&Math.hypot(n.x-x,n.z-z)<R*.9)n.aw=Math.min(1,n.aw+.3)})}
+function soBlastStep(dt){if(soBlastT<=0){if(soBlast.visible)soBlast.visible=false;return}
+  soBlastT-=dt;var q=1-Math.max(0,soBlastT)/.42;soBlast.scale.setScalar(soBlastR*(.3+q*.9));soBlast.material.opacity=.7*(1-q);if(soBlastT<=0)soBlast.visible=false}
+function soMkDrone(i,x,z){
+  var g=new THREE.Group(),bd=new THREE.Mesh(CY(1.8,2.3,.9,10),new THREE.MeshPhongMaterial({color:0x4a5260,flatShading:true,emissive:0x121820}));g.add(bd);
+  var eye=new THREE.Mesh(SP(.5,8),new THREE.MeshBasicMaterial({color:0xffaa33}));eye.position.set(0,-.5,1.6);g.add(eye);
+  var rot=[];[-1,1].forEach(function(s){var r1=new THREE.Mesh(new THREE.TorusGeometry(1.1,.14,5,12),new THREE.MeshPhongMaterial({color:0x9fb4c8}));r1.rotation.x=PI/2;r1.position.set(s*2.5,.5,0);g.add(r1);rot.push(r1)});
+  var bm=new THREE.Mesh(CN(5,16,10),wpAdd(0xff6a6a,.14));bm.rotation.x=PI;bm.position.y=-8.5;g.add(bm);
+  surfG.add(g);
+  return{id:1000+i,g:g,eye:eye,rot:rot,cone:bm,x:x,z:z,y:0,fy:0,hx:x,hz:z,tx:x,tz:z,wait:0,fire:1.8,alert:0,suck:false}}
+function soDroneStep(d,dt,playing){
+  if(d.suck){d.g.position.set(d.x,d.y,d.z);return}
+  var gy=hAt(d.x,d.z),fly=Math.max(gy,WL)+26+Math.sin(time*1.6+d.id)*1.2,dd=Math.hypot(ufo.x-d.x,ufo.z-d.z),chase=playing&&dd<170;
+  if(chase){var ax=ufo.x-d.x,az=ufo.z-d.z,l=Math.hypot(ax,az)||1,sp=dd>40?22:7;d.x=clamp(d.x+ax/l*sp*dt,-BOUND,BOUND);d.z=clamp(d.z+az/l*sp*dt,-BOUND,BOUND);d.alert=Math.min(1,d.alert+dt*1.1)}
+  else{if(d.wait>0)d.wait-=dt;
+    else{var q=Math.hypot(d.tx-d.x,d.tz-d.z);if(q<3){d.wait=.8+Math.random()*1.4;d.tx=clamp(d.hx+(Math.random()-.5)*220,-BOUND,BOUND);d.tz=clamp(d.hz+(Math.random()-.5)*220,-BOUND,BOUND)}else{d.x+=(d.tx-d.x)/q*14*dt;d.z+=(d.tz-d.z)/q*14*dt}}
+    d.alert=Math.max(0,d.alert-dt*.6)}
+  d.y=fly;d.fy=fly-1.4;d.g.position.set(d.x,d.y,d.z);d.g.rotation.y+=dt*(chase?2.2:.8);
+  d.rot.forEach(function(r1,i2){r1.rotation.z+=dt*(18+i2*3)});
+  d.eye.material.color.setHex(d.alert>.6?0xff2233:0xffaa33);d.cone.visible=playing;
+  if(playing&&dd<120){d.fire-=dt;if(d.fire<=0){d.fire=Math.max(1.4,2.8-.3*soArm);fireShot(d,'bolt')}}
+  if(playing&&d.alert>=1&&dd<110)natives.forEach(function(n){if(!n.sucked&&n.state==='wander')n.aw=Math.min(1,n.aw+dt*.45)})}
+function soMkWalker(i,x,z){
+  var g=new THREE.Group(),m1=new THREE.MeshPhongMaterial({color:0x5b6472,flatShading:true,emissive:0x141a22}),m2=new THREE.MeshPhongMaterial({color:0x2f353f,flatShading:true});
+  var body=new THREE.Mesh(new THREE.BoxGeometry(6,4.4,5),m1);body.position.y=11;g.add(body);
+  var hd=new THREE.Mesh(new THREE.BoxGeometry(3,1.8,2.6),m2);hd.position.set(0,14,1.2);g.add(hd);
+  var eye=new THREE.Mesh(SP(.46,8),new THREE.MeshBasicMaterial({color:0xff3344}));eye.position.set(0,14,2.7);g.add(eye);
+  var can=new THREE.Mesh(CY(.85,1.05,6,8),m2);can.rotation.x=PI/2;can.position.set(2.4,11.6,2.6);g.add(can);
+  var legs=[-1,1].map(function(s){var lg2=new THREE.Group();lg2.position.set(s*2.2,9,0);var u2=new THREE.Mesh(CY(.85,.7,5,6),m2);u2.position.y=-2.5;lg2.add(u2);var ft=new THREE.Mesh(new THREE.BoxGeometry(2.4,1,4),m2);ft.position.y=-5.4;lg2.add(ft);g.add(lg2);return lg2});
+  g.position.set(x,hAt(x,z),z);surfG.add(g);
+  return{id:2000+i,g:g,eye:eye,legs:legs,x:x,z:z,y:0,fy:0,hp:3,fire:2.6,stun:0,walk:0}}
+function soWalkerStep(w,dt,playing){
+  var gy=hAt(w.x,w.z),dd=Math.hypot(ufo.x-w.x,ufo.z-w.z);
+  if(w.stun>0){w.stun-=dt;w.g.rotation.z=Math.sin(time*18)*.09}
+  else{w.g.rotation.z=0;
+    if(playing&&dd<320&&dd>26){var ax=ufo.x-w.x,az=ufo.z-w.z,l=Math.hypot(ax,az)||1,nx=clamp(w.x+ax/l*7.5*dt,-BOUND,BOUND),nz=clamp(w.z+az/l*7.5*dt,-BOUND,BOUND);
+      if(hAt(nx,nz)>WL+.2){w.x=nx;w.z=nz}w.walk+=dt*5;w.g.rotation.y=Math.atan2(ax,az)}
+    if(playing&&dd<170){w.fire-=dt;if(w.fire<=0){w.fire=Math.max(2.6,4.8-.4*soArm);w.fy=gy+11.5;fireShot(w,'bazooka')}}}
+  w.y=gy;w.g.position.set(w.x,w.y,w.z);
+  w.legs[0].rotation.x=Math.sin(w.walk)*.5;w.legs[1].rotation.x=-w.legs[0].rotation.x;
+  w.eye.material.color.setHex(w.stun>0?0x44566a:0xff3344)}
+function soMkTnt(i,x,z){
+  var y=hAt(x,z),g=new THREE.Group(),bx=new THREE.Mesh(new THREE.BoxGeometry(2.6,2,2.6),new THREE.MeshPhongMaterial({color:0xb03028,flatShading:true,emissive:0x240606}));bx.position.y=1;g.add(bx);
+  var lp=new THREE.Mesh(SP(.4,8),new THREE.MeshBasicMaterial({color:0xff5533}));lp.position.y=2.5;g.add(lp);
+  g.position.set(x,y,z);surfG.add(g);
+  return{id:3000+i,g:g,lamp:lp,x:x,z:z,y:y+1.2,fuse:0,bz:-1,on:true}}
+function soTntStep(t,dt,playing){
+  var dd=Math.hypot(ufo.x-t.x,ufo.z-t.z);
+  if(playing&&t.fuse<=0&&dd<24&&ufo.alt<26){t.fuse=1.3;weaponNote('tnt');$banner('TNTが点滅した！ 離れよう','crit',1.6)}
+  if(t.fuse>0){t.fuse-=dt;t.lamp.material.color.setHex((((time*12)|0)%2)?0xffffff:0xff2222);t.lamp.scale.setScalar(1.2+Math.sin(time*26)*.4);
+    var bz=(time*9)|0;if(bz!==t.bz){t.bz=bz;tone(1500,1500,.05,'square',.05)}
+    if(t.fuse<=0){t.on=false;t.g.visible=false;soBoom(t.x,t.y+1,t.z,18)}}
+  else{t.lamp.material.color.setHex(0xff5533);t.lamp.scale.setScalar(1)}}
+function soBuildHiTech(p){
+  soDrones=[];soWalkers=[];soTnts=[];soAnchorNote=false;soWkNote=false;soBlastT=0;soBlast.visible=false;
+  var k=soKit(soArm),rr=rng(p.seed*7+soArm*31+11),i,j;
+  if(k.tnt)for(i=0;i<points.length;i++)for(j=0;j<2;j++){
+    var a=rr()*TAU,d=RING*.5+rr()*RING*.55,x=clamp(points[i].x+Math.cos(a)*d,-BOUND,BOUND),z=clamp(points[i].z+Math.sin(a)*d,-BOUND,BOUND);
+    if(hAt(x,z)<WL+1)continue;soTnts.push(soMkTnt(soTnts.length,x,z))}
+  for(i=0;i<k.drone;i++){var pt=points[i%points.length];soDrones.push(soMkDrone(i,clamp(pt.x+(rr()-.5)*170,-BOUND,BOUND),clamp(pt.z+(rr()-.5)*170,-BOUND,BOUND)))}
+  for(i=0;i<k.walker;i++){var p2=points[(i+1)%points.length],wx=clamp(p2.x+(rr()-.5)*210,-BOUND,BOUND),wz=clamp(p2.z+(rr()-.5)*210,-BOUND,BOUND);
+    if(hAt(wx,wz)<WL+1){wx=p2.x+60;wz=p2.z+60}soWalkers.push(soMkWalker(i,wx,wz))}}
+function soHiStep(dt,playing){
+  soBlastStep(dt);var i,dmin=1e9,wmin=1e9;
+  for(i=0;i<soDrones.length;i++){soDroneStep(soDrones[i],dt,playing);dmin=Math.min(dmin,Math.hypot(ufo.x-soDrones[i].x,ufo.z-soDrones[i].z))}
+  for(i=0;i<soWalkers.length;i++){soWalkerStep(soWalkers[i],dt,playing);wmin=Math.min(wmin,Math.hypot(ufo.x-soWalkers[i].x,ufo.z-soWalkers[i].z))}
+  for(i=0;i<soTnts.length;i++)if(soTnts[i].on)soTntStep(soTnts[i],dt,playing);
+  if(playing&&dmin<190)weaponNote('drone');
+  if(playing&&wmin<240)weaponNote('walker')}
 
 /* ---------- suction: A held = pull everything in, longer hold = stronger ---------- */
 var rkO=new THREE.Object3D(),suckT=0,suckPow=0,boT=0,enShown=-1,humT=0,SAND_N=160,sandA=new Float32Array(SAND_N*3),sandOn=false,sandGeo=new THREE.BufferGeometry(),
@@ -677,11 +813,11 @@ function suckStep(dt){
   laserStep(dt);
   for(i=0;i<shots.length;i++){var sh=shots[i];if(!sh.on)continue;
     if(mode!=='play'){sh.on=false;sh.m.visible=false;continue}
-    if(on&&Math.hypot(tx-sh.x,tz-sh.z)<R){var sr=pullTo(sh,tx,ty,tz,pull*.9+30,dt);sh.m.position.set(sh.x,sh.y,sh.z);if(sr<3){sh.on=false;sh.m.visible=false;stat.en+=5;tone(800,1400,.1,'triangle',.08)}continue}
+    if(on&&Math.hypot(tx-sh.x,tz-sh.z)<R){var sr=pullTo(sh,tx,ty,tz,pull*.9+30,dt);sh.m.position.set(sh.x,sh.y,sh.z);if(sr<3){sh.on=false;sh.m.visible=false;stat.en+=(sh.kind==='bazooka'?12:5);tone(800,1400,.1,'triangle',.08)}continue}
     if(sh.kind==='homing'){var hx=ufo.x-sh.x,hy=ufo.y-sh.y,hz=ufo.z-sh.z,hl=Math.hypot(hx,hy,hz)||1,hk=Math.min(1,1.8*dt);sh.vx+=(hx/hl*sh.sp-sh.vx)*hk;sh.vy+=(hy/hl*sh.sp-sh.vy)*hk;sh.vz+=(hz/hl*sh.sp-sh.vz)*hk}
     else if(sh.kind==='net')sh.m.rotation.y+=dt*5;
     sh.x+=sh.vx*dt;sh.y+=sh.vy*dt;sh.z+=sh.vz*dt;sh.life-=dt;sh.m.position.set(sh.x,sh.y,sh.z);
-    if(sh.life<=0||sh.y<hAt(sh.x,sh.z)){sh.on=false;sh.m.visible=false;continue}
+    if(sh.life<=0||sh.y<hAt(sh.x,sh.z)){if(sh.kind==='bazooka')soBoom(sh.x,Math.max(sh.y,hAt(sh.x,sh.z)+1),sh.z,16);sh.on=false;sh.m.visible=false;continue}
     if(invul<=0&&Math.hypot(sh.x-ufo.x,sh.y-ufo.y,sh.z-ufo.z)<sh.hr)hitUfo(sh)}
   snareT=Math.max(0,snareT-dt);wpNet.visible=snareT>0&&mode==='play';if(wpNet.visible){wpNet.position.set(ufo.x,ufo.y,ufo.z);wpNet.rotation.z+=dt*3}
   invul=Math.max(0,invul-dt);
@@ -701,11 +837,23 @@ function suckStep(dt){
     var nr=pullTo(n,tx,ty,tz,spd(3,nh),dt);
     n.g.position.set(n.x,n.y,n.z);n.g.rotation.y+=dt*8;n.arms[0].rotation.z=Math.sin(time*22)*.9;n.arms[1].rotation.z=-n.arms[0].rotation.z;
     if(nr<3){n.g.visible=false;natives.splice(i,1);stat.suck++;stat.en+=20;tone(300,900,.18,'triangle',.1);buzz(30)}}
+  /* hi-tech: drones and TNT can be swallowed, walkers are anchored down by their own weight */
+  for(i=soDrones.length-1;i>=0;i--){var dr=soDrones[i],dh=Math.hypot(tx-dr.x,tz-dr.z);
+    if(!on){dr.suck=false;continue}
+    if(!dr.suck&&dh>R)continue;dr.suck=true;
+    var drr=pullTo(dr,tx,ty,tz,spd(4,dh),dt);dr.g.position.set(dr.x,dr.y,dr.z);dr.g.rotation.y+=dt*10;
+    if(drr<3.5){dr.g.visible=false;soDrones.splice(i,1);stat.suck++;stat.en+=15;tone(340,1100,.16,'triangle',.1);buzz(30);$banner('ドローンを吸い込んだ！ ⚡+15','good',1.4)}}
+  for(i=soTnts.length-1;i>=0;i--){var tn=soTnts[i];if(!tn.on||!on)continue;var th=Math.hypot(tx-tn.x,tz-tn.z);
+    if(!tn.suck&&th>R)continue;tn.suck=true;
+    var tr=pullTo(tn,tx,ty,tz,spd(2,th),dt);tn.g.position.set(tn.x,tn.y-1.2,tn.z);tn.g.rotation.y+=dt*6;
+    if(tr<3.5){tn.on=false;tn.g.visible=false;stat.suck++;stat.en+=10;tone(300,900,.14,'triangle',.09);$banner('TNTを吸い込んだ！ ⚡+10','good',1.4)}}
+  if(on&&!soWkNote)for(i=0;i<soWalkers.length;i++)if(Math.hypot(tx-soWalkers[i].x,tz-soWalkers[i].z)<R){soWkNote=true;$banner('歩く兵器は重すぎて吸い込めない！ Bのビーム3発で止まる','warn',2.2);break}
   /* landmark props (only the decoration, the survey ring stays) */
   points.forEach(function(p){if(!p.mg||p.mgGone)return;
     if(!on){if(p.mgW){var g2=p.mgW;g2.vy=(g2.vy||0)-60*dt;g2.y+=g2.vy*dt;if(g2.y<=p.y){g2.y=p.y;p.mgW=null;p.mg.position.set(0,0,0);p.mg.scale.setScalar(1);p.mg.rotation.y=0}else p.mg.position.set(g2.x-p.x,g2.y-p.y,g2.z-p.z)}return}
     var ph=Math.hypot(tx-p.x,tz-p.z);if(!p.mgW&&ph>R)return;
-    if(!p.mgW)p.mgW={x:p.x,y:p.y,z:p.z,vy:0};var w=p.mgW;w.vy=0;var pr=pullTo(w,tx,ty,tz,spd(14,ph),dt);
+    if(!p.mgW){p.mgW={x:p.x,y:p.y,z:p.z,vy:0};if(soArm>0&&!soAnchorNote){soAnchorNote=true;$banner('建物は対UFOアンカーで固定されている！ 吸うのに時間がかかる','warn',2.4)}}
+    var w=p.mgW;w.vy=0;var pr=pullTo(w,tx,ty,tz,spd(14*(1+1.4*soArm),ph),dt);
     p.mg.position.set(w.x-p.x,w.y-p.y,w.z-p.z);p.mg.rotation.y+=dt*4;p.mg.scale.setScalar(clamp(pr/20,.15,1));
     if(pr<3){p.mg.visible=false;p.mgGone=true;p.mgW=null;stat.suck++;stat.en+=40;$banner('建物ごと吸い込んだ！','good',1.6);tone(200,1000,.3,'sawtooth',.1);buzz(60)}});
   /* X boost: swallow the ground itself (sand, dunes, regolith) around the pad */
@@ -728,14 +876,14 @@ function suckStep(dt){
     sRingB.position.set(tx,rg0+.1,tz);sRingB.scale.setScalar(Math.max(1,R*(1-ph2)));sRingB.material.opacity=.55*(1-ph2);
     humT-=dt;if(humT<=0){humT=.11;tone(110+pw*300,90+pw*260,.12,'sawtooth',.03+pw*.03)}}
   var ev=Math.floor(stat.en);if(ev!==enShown){enShown=ev;var ew=$('enw');$('enV').textContent=ev;ew.classList.add('pop');setTimeout(function(){ew.classList.remove('pop')},150)}
-  var hs=loopN>0?'◆'.repeat(Math.max(0,hp))+'◇'.repeat(Math.max(0,1+up.sh-hp)):'';if(hs!==hpShown){hpShown=hs;$('hpRow').style.display=hs?'':'none';$('vHp').textContent=hs}
+  var hs=soArm>0?'◆'.repeat(Math.max(0,hp))+'◇'.repeat(Math.max(0,1+up.sh-hp)):'';if(hs!==hpShown){hpShown=hs;$('hpRow').style.display=hs?'':'none';$('vHp').textContent=hs}
   var sw=$('suckw');sw.classList.toggle('on',suckT>.05&&mode==='play');sw.classList.toggle('xb',bo>.05);
   if(suckT>.05){$('bSu').style.width=(pw*100)+'%';$('suckTx').textContent=bo>.05?'超吸引！ ×'+(1+bo*2).toFixed(1):'吸引力 Lv'+(1+Math.floor(pw*4.999))+(pw>=1?'  MAX':'')}}
 
 function step(dt){
   time+=dt;bannerT-=dt;if(bannerT<=0)$('banner').classList.remove('show');
   ufoLights.rotation.y+=dt*3;
-  if(mode==='title'||mode==='intro'||mode==='gas'){orbT+=dt;orbMesh.rotation.y+=dt*.08;ufoG.visible=true}
+  if(mode==='title'||mode==='intro'||mode==='gas'||mode==='map'){orbT+=dt;orbMesh.rotation.y+=dt*.08;ufoG.visible=true}
   if(mode==='gas'){gasT+=dt;if(gasT>6.5)gasNext()}
   if(mode==='descent'){descT+=dt;
     if(descT<3.4){ /* orbit approach */
@@ -757,7 +905,7 @@ function step(dt){
 var tmpV=new THREE.Vector3(),rd=$('rd'),rg=rd.getContext('2d');
 function sync(dt){
   var surfMode=(mode==='play'||mode==='clear'||mode==='clearcard'||mode==='over'||(mode==='descent'&&descT>=3.4));
-  if(mode==='title'||mode==='intro'||mode==='gas'){
+  if(mode==='title'||mode==='intro'||mode==='gas'||mode==='map'){
     orbMesh.position.set(mode==='title'?40:mode==='gas'?26:0,mode==='title'?-14:mode==='gas'?-4:-30,0);orbAtmo.position.copy(orbMesh.position);if(orbRing)orbRing.position.copy(orbMesh.position);
     camera.position.set(0,6,125);camera.lookAt(0,0,0);
     ufoG.scale.setScalar(1.1);ufoG.position.set(-22+Math.sin(time*.35)*10,10+Math.sin(time*.9)*1.6,92);ufoG.rotation.set(0,time*.3,0);ufoTilt.rotation.set(Math.sin(time*.6)*.08,0,Math.cos(time*.5)*.08)}
@@ -820,7 +968,7 @@ dpad.addEventListener('pointerdown',function(e){e.preventDefault();tap();if(dpId
 dpad.addEventListener('pointermove',function(e){if(e.pointerId===dpId){e.preventDefault();dpMove(e)}});
 function dpEnd(e){if(e.pointerId===dpId){dpId=null;dpV.x=dpV.z=0;applyInp()}}
 ['pointerup','pointercancel','lostpointercapture'].forEach(function(t){dpad.addEventListener(t,dpEnd)});
-function primary(){var map=[['ovTitle','goBtn'],['ovIntro','dropBtn'],['ovGas','gsBtn'],['ovClear','nextBtn'],['ovOver','retryBtn']];for(var i=0;i<map.length;i++)if(!$(map[i][0]).hidden){var now=performance.now();if(now-lastAct>500){lastAct=now;$(map[i][1]).click()}return true}
+function primary(){var map=[['ovTitle','goBtn'],['ovIntro','dropBtn'],['ovGas','gsBtn'],['ovClear','nextBtn'],['ovMap','mpGo'],['ovOver','retryBtn']];for(var i=0;i<map.length;i++)if(!$(map[i][0]).hidden){var now=performance.now();if(now-lastAct>500){lastAct=now;$(map[i][1]).click()}return true}
   var te=$('toTitle');if(!$('ovEnd').hidden&&te){var n2=performance.now();if(n2-lastAct>500){lastAct=n2;te.click()}return true}return false}
 var lastAct=0;
 function pressA(on){inp.a=on;$('btA').classList.toggle('held',on);if(on){tap();if(!primary()){if(mode==='descent'&&descT>1.2&&descT<3.2)descT=3.2}}}
@@ -848,13 +996,14 @@ window.addEventListener('keyup',function(e){var k=e.key.toLowerCase();
   else if(k===' '||k==='x'||k==='enter'){kd.a=0;pressA(false)}else if(k==='c'||k==='k'||k==='shift')pressC(false);else if(k==='v')pressX(false);keyV.x=(kd.r?1:0)-(kd.l?1:0);keyV.z=(kd.d?1:0)-(kd.u?1:0);applyInp()});
 window.addEventListener('blur',function(){kd={};keyV.x=keyV.z=0;dpV.x=dpV.z=0;pressA(false);pressC(false);pressX(false);applyInp()});
 $('goBtn').onclick=function(){tap();startRun()};$('dropBtn').onclick=function(){tap();startDescent()};$('gsBtn').onclick=function(){tap();gasNext()};$('nextBtn').onclick=function(){tap();nextPlanet()};$('retryBtn').onclick=function(){tap();retryPlanet()};
+$('mapBtn').onclick=function(){tap();openMap()};$('mpGo').onclick=function(){tap();nextPlanet()};$('mpSh').onclick=openShop;
 (function(){var m=$('mute');m.setAttribute('aria-pressed',String(!muted));m.textContent=muted?'音 OFF':'音 ON';m.onclick=function(){muted=!muted;this.setAttribute('aria-pressed',String(!muted));this.textContent=muted?'音 OFF':'音 ON';try{localStorage.setItem('tg.328.mute',muted?'1':'0')}catch(e){}}})();
 $('pauseBtn').onclick=function(){setPause(!paused)};$('resumeBtn').onclick=function(){tap();setPause(false)};
 
 /* ---------- UFO hangar (spend energy) ---------- */
 function renderShop(){$('shEn').textContent='⚡ エネルギー '+Math.floor(stat.en);var h='';
   UPS.forEach(function(u){var lv=up[u.k],mx=lv>=3,c=UCOST[lv];h+='<div class="shr"><div><b>'+u.n+'　'+'■'.repeat(lv)+'□'.repeat(3-lv)+'</b><small>'+u.d+'</small></div><button type="button" data-k="'+u.k+'"'+(mx||stat.en<c?' disabled':'')+'>'+(mx?'MAX':'⚡'+c)+'</button></div>'});
-  $('shList').innerHTML=h;$('shNote').textContent='1周目をクリアすると、各星は文明が発展して対UFO兵器を持つ。備えておこう。'+(loopN>0?'（いま '+(loopN+1)+'周目）':'');
+  $('shList').innerHTML=h;$('shNote').textContent='調べ終わった星にもう一度行くと、住人は前回の襲来を踏まえてハイテク武装している（弾・ネット・TNT・ドローン → バズーカ・歩く兵器 → レーザー）。建物も固定され、吸うのに時間がかかる。備えておこう。'+(loopN>0?'（いま '+(loopN+1)+'周目）':'');
   $('shList').querySelectorAll('button').forEach(function(b){b.onclick=function(){var k=b.getAttribute('data-k'),lv=up[k],c=UCOST[lv];if(lv<3&&stat.en>=c){stat.en-=c;up[k]=lv+1;tone(600,1200,.15,'triangle',.1);renderShop()}}})}
 function openShop(){tap();renderShop();$('ovShop').hidden=false}
 $('shBtn').onclick=openShop;$('shClose').onclick=function(){tap();$('ovShop').hidden=true};
@@ -916,7 +1065,10 @@ var last=performance.now();
 function frame(now){requestAnimationFrame(frame);var dt=Math.min(.05,(now-last)/1000);last=now;if(document.hidden){setPause(true);return}
   if(!paused){pollPad();step(dt)}if(mode==='clearcard'||mode==='over'){/* frozen after the card */}
   sync(dt);if(hasGL)renderer.render(scene,camera)}
-window.__so={get up(){return up},set loopN(v){loopN=v},get loopN(){return loopN},get hp(){return hp},get shots(){return shots},renderShop:renderShop,get rocks(){return rocks},get suckPow(){return suckPow},step:function(dt){step(dt);sync(dt)},get mode(){return mode},set mode(v){mode=v},ufo:ufo,inp:inp,get natives(){return natives},get points(){return points},stat:function(){return stat},hAt:hAt,PL:PL,doBeam:doBeam,startRun:startRun,startDescent:startDescent,get gasI(){return gasI},gasNext:gasNext,gasEvent:gasEvent,nextPlanet:nextPlanet,get seqI(){return seqI},get descT(){return descT},set descT(v){descT=v},get WL(){return WL}};
+window.__so={get up(){return up},set loopN(v){loopN=v},get loopN(){return loopN},get hp(){return hp},get shots(){return shots},renderShop:renderShop,get rocks(){return rocks},get suckPow(){return suckPow},step:function(dt){step(dt);sync(dt)},get mode(){return mode},set mode(v){mode=v},ufo:ufo,inp:inp,get natives(){return natives},get points(){return points},stat:function(){return stat},hAt:hAt,PL:PL,doBeam:doBeam,startRun:startRun,startDescent:startDescent,get gasI(){return gasI},gasNext:gasNext,gasEvent:gasEvent,nextPlanet:nextPlanet,get seqI(){return seqI},get descT(){return descT},set descT(v){descT=v},get WL(){return WL},
+  get soVis(){return soVis},set soVis(v){soVis=v},get soDone(){return soDone},set soDone(v){soDone=v},get soArm(){return soArm},set soArm(v){soArm=v},get soGas(){return soGas},set soGas(v){soGas=v},
+  soArmOf:soArmOf,soKit:soKit,soKitText:soKitText,openMap:openMap,soGoTo:soGoTo,renderMap:renderMap,ending:ending,planetClear:planetClear,
+  get soDrones(){return soDrones},get soWalkers(){return soWalkers},get soTnts(){return soTnts},get pIdx(){return pIdx},set pIdx(v){pIdx=v}};
 resize();toTitle();requestAnimationFrame(frame);
 })();
 </script>
